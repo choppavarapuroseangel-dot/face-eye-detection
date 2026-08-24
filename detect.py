@@ -97,6 +97,7 @@ def detect_and_annotate(frame, face_cascade, eye_cascade):
         gray, scaleFactor=1.1, minNeighbors=6, minSize=(min_face, min_face)
     )
     faces = _dedupe_overlapping(faces)
+    eye_count = 0
 
     for (fx, fy, fw, fh) in faces:
         cv2.rectangle(frame, (fx, fy), (fx + fw, fy + fh), FACE_COLOR, 2)
@@ -117,8 +118,9 @@ def detect_and_annotate(frame, face_cascade, eye_cascade):
             cv2.rectangle(
                 face_roi_color, (ex, ey), (ex + ew, ey + eh), EYE_COLOR, 2
             )
+            eye_count += 1
 
-    return frame, len(faces)
+    return frame, len(faces), eye_count
 
 
 def run_on_image(path: Path, face_cascade, eye_cascade):
@@ -126,10 +128,10 @@ def run_on_image(path: Path, face_cascade, eye_cascade):
     if frame is None:
         sys.exit(f"Could not read image: {path}")
 
-    annotated, face_count = detect_and_annotate(frame, face_cascade, eye_cascade)
+    annotated, face_count, eye_count = detect_and_annotate(frame, face_cascade, eye_cascade)
     out_path = path.with_name(f"{path.stem}_detected{path.suffix}")
     cv2.imwrite(str(out_path), annotated)
-    print(f"Detected {face_count} face(s). Saved: {out_path}")
+    print(f"Detected {face_count} face(s), {eye_count} eye(s). Saved: {out_path}")
 
     cv2.imshow("Face & Eye Detection - press any key to close", annotated)
     cv2.waitKey(0)
@@ -156,14 +158,14 @@ def run_on_stream(source, face_cascade, eye_cascade):
                 print("Stream ended or camera disconnected.")
                 break
 
-            frame, face_count = detect_and_annotate(frame, face_cascade, eye_cascade)
+            frame, face_count, eye_count = detect_and_annotate(frame, face_cascade, eye_cascade)
 
             now = time.time()
             fps = 0.9 * fps + 0.1 * (1.0 / max(now - prev_time, 1e-6))
             prev_time = now
 
             cv2.putText(
-                frame, f"FPS: {fps:.1f}  Faces: {face_count}", (12, 28),
+                frame, f"FPS: {fps:.1f}  Faces: {face_count}  Eyes: {eye_count}", (12, 28),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA,
             )
             cv2.imshow("Face & Eye Detection - press q to quit", frame)
